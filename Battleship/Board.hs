@@ -1,14 +1,14 @@
-
+{-# LANGUAGE TupleSections #-}
 
 module Battleship.Board where
 
-import Data.List
+import Data.List (foldl')
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM
 
 
 
-type Coordinates = (Int , Int)
+type Coordinates = (Int, Int)
 
 
 data Ship = Ship {
@@ -21,14 +21,14 @@ data Type =
     Cruiser |
     Submarine |
     Battleship |
-    Carrier deriving (Show)
+    Carrier deriving (Show, Enum)
 
 data Placement =
     Vertical |
     Horizontal deriving Show
 
 
-data Status = Intact | Hit deriving Show
+data Status = Intact | Attacked deriving (Show, Eq)
 
 data Square = Square {
       status :: Status,
@@ -43,41 +43,50 @@ data Board = Board {
       ships :: IM.IntMap Ship } deriving Show
 
 
-minCoord = 0
-maxCoord = 9
+data AttackResult = Miss | Hit | Sunk deriving Show
+
+minCoord = 1
+maxCoord = 10
 
 
-size :: Type -> Int
-size Patrol = 1
-size Cruiser = 2
-size Submarine = 3
-size Battleship = 4
-size Carrier = 5
+shipSize :: Type -> Int
+shipSize = succ . fromEnum
 
 
-location :: Ship -> [Coordinates]
-location (Ship t (x,y) p) =
+shipCoords :: Ship -> [Coordinates]
+shipCoords (Ship t (x,y) p) =
     case p of
-      Vertical -> [(x,y') | y' <- [y..y+size t]]
-      Horizontal -> [(x',y) | x' <- [x..x+size t]]
+      Vertical -> map (x,) [y .. y + shipSize t]
+      Horizontal -> map (,y) [x .. x + shipSize t]
 
 
 empty :: Board
 empty = Board M.empty IM.empty
 
-
-
 insert :: Ship -> Board -> Board
 insert s@(Ship t xy p) (Board sqs shs) =
     let i = IM.size shs
-        sqs' = foldl' (\m xy -> M.insert xy (Square Intact i) m) sqs ls 
+        sqs' = foldl' (\m xy -> M.insert xy (Square Intact i) m) sqs xys 
         shs' = IM.insert i s shs
     in if isValid then Board sqs' shs' else error "Invalid ship placement"
     where
-      ls = location s
-      isValid = all check ls
+      xys = shipCoords s
+      isValid = all check xys
       check xy@(x,y) = x <= maxCoord && y <= maxCoord && M.notMember xy sqs
 
+fromList :: [Ship] -> Board
+fromList = foldl' (flip insert) empty
 
---      check xy@(x,y)
---            | x < minCoord || x > maxCoord = error "Invalid coordinates: " + show xy 
+
+attack :: Coordinates -> Board -> (AttackResult, Board)
+attack xy b@(Board sqs shs) =
+    case M.lookup xy sqs of
+      Nothing -> (Miss, b)
+      Just (Square _ i) ->
+          let sqs' = M.insert xy (Square Attacked i) sqs
+              sh = shs IM.! i 
+              sunk = all (==Attacked) [status (sqs' M.! xy) | xy <- shipCoords sh]
+          in (if sunk then Sunk else Hit, Board sqs' shs)
+
+allSunk :: Board -> Bool
+allSunk = all (\s -> status s == Attacked) . M.elems . squares
