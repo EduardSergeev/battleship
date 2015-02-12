@@ -28,10 +28,10 @@ data Placement =
     Horizontal deriving Show
 
 
-data Status = Intact | Attacked deriving (Show, Eq)
+--data Status = Intact | Attacked deriving (Show, Eq)
 
 data Square = Square {
-      status :: Status,
+      attacked :: Bool,
       ship :: ShipIndex } deriving Show
 
 type ShipIndex = IM.Key
@@ -66,7 +66,7 @@ empty = Board M.empty IM.empty
 insert :: Ship -> Board -> Board
 insert s@(Ship t xy p) (Board sqs shs) =
     let i = IM.size shs
-        sqs' = foldl' (\m xy -> M.insert xy (Square Intact i) m) sqs xys 
+        sqs' = foldl' (\m xy -> M.insert xy (Square False i) m) sqs xys 
         shs' = IM.insert i s shs
     in if isValid then Board sqs' shs' else error "Invalid ship placement"
     where
@@ -83,10 +83,10 @@ attack xy b@(Board sqs shs) =
     case M.lookup xy sqs of
       Nothing -> (Miss, b)
       Just (Square _ i) ->
-          let sqs' = M.insert xy (Square Attacked i) sqs
+          let sqs' = M.insert xy (Square True i) sqs
               sh = shs IM.! i 
-              sunk = all (==Attacked) [status (sqs' M.! xy) | xy <- shipCoords sh]
+              sunk = all attacked [(sqs' M.! xy) | xy <- shipCoords sh]
           in (if sunk then Sunk else Hit, Board sqs' shs)
 
 allSunk :: Board -> Bool
-allSunk = all (\s -> status s == Attacked) . M.elems . squares
+allSunk = all attacked . M.elems . squares
