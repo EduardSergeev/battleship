@@ -1,6 +1,25 @@
 {-# LANGUAGE TupleSections #-}
 
-module Battleship.Board where
+module Battleship.Board
+(
+   Coordinates,
+   ShipType(..),
+   Placement(..),
+   Ship(..),
+   AttackResult(..),
+   Board,
+
+   empty,
+   addShip,
+
+   attack,
+
+   isSunk,
+   allSunk,
+
+   showSquare,
+   showBoard
+) where
 
 import Data.List (foldl')
 import qualified Data.Map.Strict as M
@@ -8,15 +27,15 @@ import qualified Data.IntMap.Strict as IM
 
 
 
-type Coordinates = (Int, Int)
+type Coordinates = (Char, Int)
 
 
 data Ship = Ship {
-      shipType :: Type,
+      shipType :: ShipType,
       bow :: Coordinates,
       placement :: Placement } deriving Show
 
-data Type =
+data ShipType =
     Patrol |
     Cruiser |
     Submarine |
@@ -27,9 +46,6 @@ data Placement =
     Vertical |
     Horizontal deriving Show
 
-
---data Status = Intact | Attacked deriving (Show, Eq)
-
 data Square = Square {
       attacked :: Bool,
       ship :: ShipIndex } deriving Show
@@ -38,18 +54,27 @@ type ShipIndex = IM.Key
 
 type Squares = M.Map Coordinates Square
 
+
 data Board = Board {
       squares :: Squares,
-      ships :: IM.IntMap Ship } deriving Show
+      ships :: IM.IntMap Ship }
+
+instance Show Board where
+    show = showFullBoard
 
 
 data AttackResult = Miss | Hit | Sunk deriving Show
 
-minCoord = 1
-maxCoord = 10
 
 
-shipSize :: Type -> Int
+
+minX = 'a'
+maxX = 'j'
+minY = 1
+maxY = 10
+
+
+shipSize :: ShipType -> Int
 shipSize = succ . fromEnum
 
 
@@ -57,14 +82,14 @@ shipCoords :: Ship -> [Coordinates]
 shipCoords (Ship t (x,y) p) =
     case p of
       Vertical -> map (x,) [y .. y + shipSize t]
-      Horizontal -> map (,y) [x .. x + shipSize t]
+      Horizontal -> map ((,y) . toEnum) [fromEnum x .. fromEnum x + shipSize t]
 
 
 empty :: Board
 empty = Board M.empty IM.empty
 
-insert :: Ship -> Board -> Board
-insert s@(Ship t xy p) (Board sqs shs) =
+addShip :: Board -> Ship -> Board
+addShip (Board sqs shs) s@(Ship t xy p) =
     let i = IM.size shs
         sqs' = foldl' (\m xy -> M.insert xy (Square False i) m) sqs xys 
         shs' = IM.insert i s shs
@@ -72,21 +97,43 @@ insert s@(Ship t xy p) (Board sqs shs) =
     where
       xys = shipCoords s
       isValid = all check xys
-      check xy@(x,y) = x <= maxCoord && y <= maxCoord && M.notMember xy sqs
-
-fromList :: [Ship] -> Board
-fromList = foldl' (flip insert) empty
+      check xy@(x,y) = x <= maxX && y <= maxY && M.notMember xy sqs
 
 
-attack :: Coordinates -> Board -> (AttackResult, Board)
-attack xy b@(Board sqs shs) =
+attack :: Board -> Coordinates -> (AttackResult, Board)
+attack b@(Board sqs shs) xy =
     case M.lookup xy sqs of
       Nothing -> (Miss, b)
       Just (Square _ i) ->
           let sqs' = M.insert xy (Square True i) sqs
-              sh = shs IM.! i 
-              sunk = all attacked [(sqs' M.! xy) | xy <- shipCoords sh]
-          in (if sunk then Sunk else Hit, Board sqs' shs)
+              sh = shs IM.! i
+              res = if isSunk sh sqs' then Sunk else Hit
+          in (res, Board sqs' shs)
+
+
+isSunk :: Ship -> Squares -> Bool
+isSunk sh sqs = all attacked [sqs M.! xy | xy <- shipCoords sh]
 
 allSunk :: Board -> Bool
 allSunk = all attacked . M.elems . squares
+
+
+showBoard :: (Coordinates -> Char) -> String
+showBoard f = unlines $
+    (' ' : xs) :
+    [ last (show y) : [f (x,y) | x <- xs] ++ "|"  | y <- ys] ++
+    [' ' : map (const '-') xs]
+    where
+      xs = [minX..maxX]
+      ys = [minY..maxY]
+
+showSquare :: Board -> Coordinates -> Char
+showSquare (Board sqs shs) xy =
+    case M.lookup xy sqs of
+      Nothing -> ' '
+      Just (Square { attacked = False }) -> 'H'
+      Just (Square { ship = i }) ->
+          if isSunk (shs IM.! i) sqs then 'o' else 'X'
+
+
+showFullBoard b = showBoard (showSquare b)
