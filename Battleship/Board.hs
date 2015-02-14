@@ -30,10 +30,10 @@ import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM
 
 
-data Coordinates = Coordinates { x :: Char, y :: Int } deriving (Eq, Ord)
+data Coordinates = Char :|: Int  deriving (Eq, Ord)
 
 instance Show Coordinates where
-    show (Coordinates x y) = x : "-|-" ++ show y
+    show (x :|: y) = x : "-|-" ++ show y
 
 data Ship = Ship {
       shipType :: ShipType,
@@ -80,10 +80,10 @@ maxY = 10
 
 (-|-) :: Char -> Int -> Coordinates
 x -|- y =
-    let xy = Coordinates x y
+    let xy = x :|: y
     in if validCoordinates xy then xy else error "Out of range coordinates"
 
-validCoordinates (Coordinates x y) =
+validCoordinates (x :|: y) =
     x >= minX && x <= maxX && y >= minY && y <= maxY
 
 
@@ -95,10 +95,10 @@ newShip t xy p =
 
 shipSize = succ . fromEnum
 
-shipCoords (Ship t (Coordinates x y) p) =
+shipCoords (Ship t (x:|:y) p) =
     case p of
-      Vertical -> map (Coordinates x) [y .. y + shipSize t]
-      Horizontal -> map ((`Coordinates`y) . toEnum) [fromEnum x .. fromEnum x + shipSize t]
+      Vertical -> map (x:|:) [y .. y + shipSize t]
+      Horizontal -> map ((:|:y) . toEnum) [fromEnum x .. fromEnum x + shipSize t]
 
 
 empty :: Board
@@ -137,7 +137,7 @@ allSunk = all attacked . M.elems . squares
 showBoard :: (Coordinates -> Char) -> String
 showBoard f = unlines $
     (' ' : xs) :
-    [ last (show y) : [f (Coordinates x y) | x <- xs] ++ "|"  | y <- ys] ++
+    [ last (show y) : [f (x:|:y) | x <- xs] ++ "|"  | y <- ys] ++
     [' ' : map (const '-') xs]
     where
       xs = [minX..maxX]
