@@ -15,6 +15,7 @@ module Battleship.Board
    empty,
    shipCanBeAdded,
    addShip,
+   generateBoard,
 
    attack,
 
@@ -26,6 +27,7 @@ module Battleship.Board
 ) where
 
 import Data.List (foldl')
+import System.Random
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM
 
@@ -34,6 +36,7 @@ data Coordinates = Char :|: Int  deriving (Eq, Ord)
 
 instance Show Coordinates where
     show (x :|: y) = x : "-|-" ++ show y
+    
 
 data Ship = Ship {
       shipType :: ShipType,
@@ -91,7 +94,7 @@ newShip :: ShipType -> Coordinates -> Placement -> Ship
 newShip t xy p =
     let sh = Ship t xy p
         xys = shipCoords sh
-    in if all validCoordinates xys then sh else error "Invalid ship placement"
+    in if validShip sh then sh else error "Invalid ship placement"
 
 shipSize = succ . fromEnum
 
@@ -100,6 +103,7 @@ shipCoords (Ship t (x:|:y) p) =
       Vertical -> map (x:|:) [y .. y + shipSize t]
       Horizontal -> map ((:|:y) . toEnum) [fromEnum x .. fromEnum x + shipSize t]
 
+validShip = all validCoordinates . shipCoords
 
 empty :: Board
 empty = Board M.empty IM.empty
@@ -114,6 +118,21 @@ addShip b@(Board sqs shs) sh =
         sqs' = foldl' (\m xy -> M.insert xy (Square False i) m) sqs (shipCoords sh) 
         shs' = IM.insert i sh shs
     in if shipCanBeAdded b sh then Board sqs' shs' else error "Overlaps with another ship"
+
+generateBoard :: RandomGen g => g -> Board
+generateBoard g = snd $ foldl' addRandomShip (g,empty) [Patrol .. Carrier]
+  where
+    addRandomShip (g,b) t = head
+        [ (g', addShip b sh) |
+          ((xy,p),g') <- tail $ iterate (genBow . snd) (error "gg", g),
+          let sh = Ship t xy p,
+          validShip sh && shipCanBeAdded b sh]
+    genBow g = 
+        let (x, g') = randomR (minX,maxX) g
+            (y, g'') = randomR (minY,maxY) g'
+            (p, g''') = random g''
+        in ((x:|:y, if p then Vertical else Horizontal), g''')
+
 
 
 attack :: Board -> Coordinates -> (AttackResult, Board)
