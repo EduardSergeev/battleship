@@ -5,11 +5,15 @@ module Battleship.Board
    Coordinates,
    ShipType(..),
    Placement(..),
-   Ship(..),
+   Ship,
    AttackResult(..),
    Board,
 
+   (-|-),
+   newShip,
+
    empty,
+   shipCanBeAdded,
    addShip,
 
    attack,
@@ -26,9 +30,10 @@ import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM
 
 
+data Coordinates = Coordinates { x :: Char, y :: Int } deriving (Eq, Ord)
 
-type Coordinates = (Char, Int)
-
+instance Show Coordinates where
+    show (Coordinates x y) = x : "-|-" ++ show y
 
 data Ship = Ship {
       shipType :: ShipType,
@@ -67,37 +72,48 @@ data AttackResult = Miss | Hit | Sunk deriving Show
 
 
 
-
 minX = 'a'
 maxX = 'j'
 minY = 1
 maxY = 10
 
 
-shipSize :: ShipType -> Int
+(-|-) :: Char -> Int -> Coordinates
+x -|- y =
+    let xy = Coordinates x y
+    in if validCoordinates xy then xy else error "Out of range coordinates"
+
+validCoordinates (Coordinates x y) =
+    x >= minX && x <= maxX && y >= minY && y <= maxY
+
+
+newShip :: ShipType -> Coordinates -> Placement -> Ship
+newShip t xy p =
+    let sh = Ship t xy p
+        xys = shipCoords sh
+    in if all validCoordinates xys then sh else error "Invalid ship placement"
+
 shipSize = succ . fromEnum
 
-
-shipCoords :: Ship -> [Coordinates]
-shipCoords (Ship t (x,y) p) =
+shipCoords (Ship t (Coordinates x y) p) =
     case p of
-      Vertical -> map (x,) [y .. y + shipSize t]
-      Horizontal -> map ((,y) . toEnum) [fromEnum x .. fromEnum x + shipSize t]
+      Vertical -> map (Coordinates x) [y .. y + shipSize t]
+      Horizontal -> map ((`Coordinates`y) . toEnum) [fromEnum x .. fromEnum x + shipSize t]
 
 
 empty :: Board
 empty = Board M.empty IM.empty
 
+
+shipCanBeAdded :: Board -> Ship -> Bool
+shipCanBeAdded (Board sqs shs) sh = all (`M.notMember`sqs) . shipCoords $ sh
+
 addShip :: Board -> Ship -> Board
-addShip (Board sqs shs) s@(Ship t xy p) =
+addShip b@(Board sqs shs) sh =
     let i = IM.size shs
-        sqs' = foldl' (\m xy -> M.insert xy (Square False i) m) sqs xys 
-        shs' = IM.insert i s shs
-    in if isValid then Board sqs' shs' else error "Invalid ship placement"
-    where
-      xys = shipCoords s
-      isValid = all check xys
-      check xy@(x,y) = x <= maxX && y <= maxY && M.notMember xy sqs
+        sqs' = foldl' (\m xy -> M.insert xy (Square False i) m) sqs (shipCoords sh) 
+        shs' = IM.insert i sh shs
+    in if shipCanBeAdded b sh then Board sqs' shs' else error "Overlaps with another ship"
 
 
 attack :: Board -> Coordinates -> (AttackResult, Board)
@@ -121,7 +137,7 @@ allSunk = all attacked . M.elems . squares
 showBoard :: (Coordinates -> Char) -> String
 showBoard f = unlines $
     (' ' : xs) :
-    [ last (show y) : [f (x,y) | x <- xs] ++ "|"  | y <- ys] ++
+    [ last (show y) : [f (Coordinates x y) | x <- xs] ++ "|"  | y <- ys] ++
     [' ' : map (const '-') xs]
     where
       xs = [minX..maxX]
