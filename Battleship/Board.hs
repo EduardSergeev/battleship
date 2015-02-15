@@ -19,7 +19,6 @@ module Battleship.Board
 
    attack,
 
-   isSunk,
    allSunk,
 
    showSquare,
@@ -71,7 +70,7 @@ instance Show Board where
     show = showFullBoard
 
 
-data AttackResult = Miss | Hit | Sunk deriving Show
+data AttackResult = Miss | Hit | Sunk | Duplicate deriving Show
 
 
 
@@ -146,7 +145,6 @@ attack b@(Board sqs shs) xy =
           in (res, Board sqs' shs)
 
 
-isSunk :: Ship -> Squares -> Bool
 isSunk sh sqs = all attacked [sqs M.! xy | xy <- shipCoords sh]
 
 allSunk :: Board -> Bool

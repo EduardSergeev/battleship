@@ -2,25 +2,41 @@
 
 module Battleship.Game
 (
+  -- * Game for one player
   Game,
 
+  -- * Coordinate functions
+  (-|-),
+
+  -- * Game setup
   newGame,
   
-  makeShot
+  -- * Game play
+  attack,
+
+  -- * Game history
+  history,
+  attackResult,
+
+  -- * Graphics
+  showEnemyBoard
 ) where
 
 
 import qualified Data.Map.Strict as M
 import qualified Battleship.Board as B
-import Battleship.Board(
+import Battleship.Board (
    Board,
    Coordinates,
-   AttackResult(..))
+   AttackResult(..),
+   (-|-))
 
 
 data Game = Game {
     board :: Board,
-    attacks :: Attacks }
+    attacks :: Attacks,
+    -- | A list of previous attack coordinates in reverse time order
+    history :: [Coordinates] }
 
 instance Show Game where
     show = showEnemyBoard
@@ -28,22 +44,26 @@ instance Show Game where
 type Attacks = M.Map Coordinates AttackResult
 
 
-
+-- | Create an empty set of boards fo one player
 newGame :: Board -> Game
-newGame b = Game b M.empty
+newGame b = Game b M.empty []
 
-
-makeShot :: Game -> Coordinates -> (AttackResult, Game)
-makeShot g@(Game b ss) xy =
+-- | Make attack move
+attack :: Game -> Coordinates -> (AttackResult, Game)
+attack g@(Game b ss hs) xy =
     case M.lookup xy ss of
-      Just r -> (r, g)
+      Just r -> (Duplicate, g)
       Nothing ->
           let (r,b') = B.attack b xy
-          in (r, Game b' (M.insert xy r ss)) 
+          in (r, Game b' (M.insert xy r ss) (xy:hs)) 
+
+
+attackResult :: Game -> Coordinates -> Maybe AttackResult
+attackResult g xy = M.lookup xy (attacks g)
 
 
 showSquare :: Game -> Coordinates -> Char
-showSquare (Game b ss) xy =
+showSquare (Game b ss _) xy =
     case M.lookup xy ss of
       Nothing -> '?'
       Just Miss -> ' '
