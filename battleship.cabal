@@ -42,7 +42,7 @@ build-type:          Simple
 cabal-version:       >=1.8
 
 
-library
+Library
   -- Modules exported by the library.
   exposed-modules:
           Battleship.Game
@@ -54,10 +54,20 @@ library
   -- Other library packages from which modules are imported.
   build-depends:
           base >= 3.0 && <= 5.0,
---          mtl >= 2.0,
---          transformers >= 0.2,
-          containers >= 0.3,
-          random >= 1.0
---          array >= 0.3,
---          vector >= 0.7,
---          primitive >= 0.3  
+          containers >= 0.5,
+          random >= 1.0,
+          QuickCheck >= 2.0,
+          test-framework-quickcheck2 >= 0.3,
+          test-framework >= 0.8  
+
+Test-Suite tests
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   . test
+  main-is:          Main.hs
+  build-depends: 
+          base >= 3.0 && <= 5.0,
+          containers >= 0.5,
+          random >= 1.0,
+          QuickCheck >= 2.0,
+          test-framework-quickcheck2 >= 0.3,
+          test-framework >= 0.8  

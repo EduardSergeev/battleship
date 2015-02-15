@@ -1,4 +1,3 @@
-{-# LANGUAGE TupleSections #-}
 
 module Battleship.Board
 (
@@ -9,8 +8,12 @@ module Battleship.Board
    AttackResult(..),
    Board,
 
+   minX, maxX, minY, maxY,
+
    (-|-),
    newShip,
+
+   shipSize,
 
    empty,
    shipCanBeAdded,
@@ -33,6 +36,10 @@ import qualified Data.IntMap.Strict as IM
 
 data Coordinates = Char :|: Int  deriving (Eq, Ord)
 
+instance Bounded Coordinates where
+    minBound = (minX :|: minY)
+    maxBound = (maxX :|: maxY)
+
 instance Show Coordinates where
     show (x :|: y) = x : "-|-" ++ show y
     
@@ -47,11 +54,11 @@ data ShipType =
     Cruiser |
     Submarine |
     Battleship |
-    Carrier deriving (Show, Enum)
+    Carrier deriving (Bounded, Enum, Show)
 
 data Placement =
     Vertical |
-    Horizontal deriving Show
+    Horizontal deriving (Bounded, Enum, Show)
 
 data Square = Square {
       attacked :: Bool,
@@ -95,6 +102,7 @@ newShip t xy p =
         xys = shipCoords sh
     in if validShip sh then sh else error "Invalid ship placement"
 
+shipSize :: ShipType -> Int
 shipSize = succ . fromEnum
 
 shipCoords (Ship t (x:|:y) p) =

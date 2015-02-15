@@ -1,5 +1,4 @@
 
-
 module Battleship.Game
 (
   -- * Game for one player
