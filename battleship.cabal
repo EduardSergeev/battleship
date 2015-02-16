@@ -48,9 +48,7 @@ Library
           Battleship.Game
           Battleship.Board
   
-  -- Modules included in this library but not exported.
-  -- other-modules:       
-  
+ 
   -- Other library packages from which modules are imported.
   build-depends:
           base >= 3.0 && <= 5.0,

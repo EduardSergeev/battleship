@@ -1,8 +1,10 @@
 
 module Main (main) where
 
-import BoardTest
 import Test.Framework (defaultMain)
 
+import qualified BoardTest as B
+import qualified GameTest as G
 
-main = defaultMain tests
+
+main = defaultMain (concat [B.tests, G.tests])
